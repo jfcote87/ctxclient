@@ -11,7 +11,7 @@ import (
 
 func TestFunc(t *testing.T) {
 	var f ctxclient.Func
-	cl, err := f.Exec(context.Background())
+	cl, err := f.Get(context.Background())
 	if err != nil {
 		t.Errorf("nil Func.Exec expected nil err; got %v", err)
 	}
@@ -19,13 +19,14 @@ func TestFunc(t *testing.T) {
 		t.Errorf("nil Func.Exec expected http.DefaultClient; go %#v", cl)
 	}
 
+	var testErr = errors.New("TestError")
 	// check for err condition
 	f = func(ctx context.Context) (*http.Client, error) {
-		return http.DefaultClient, errors.New("Test Error")
+		return http.DefaultClient, testErr
 	}
-	cl, err = f.Exec(context.Background())
-	if err != nil {
-		t.Errorf("nil Func.Exec expected nil err; got %v", err)
+	cl, err = f.Get(context.Background())
+	if err != testErr {
+		t.Errorf("error Func.Exec expected testErr; got %v", err)
 	}
 	if cl != http.DefaultClient {
 		t.Errorf("nil Func.Exec expected http.DefaultClient; go %#v", cl)

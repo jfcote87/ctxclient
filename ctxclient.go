@@ -24,15 +24,12 @@ var defaultFuncs []Func
 
 func defaultFunc(ctx context.Context) (*http.Client, error) {
 	for _, f := range defaultFuncs {
-		cl, err := f(ctx)
-		if err != nil {
-			return nil, err
-		}
-		if cl != nil {
-			return cl, nil
+		if cl, err := f(ctx); err != nil || cl != nil {
+			return cl, err
 		}
 	}
 	return http.DefaultClient, nil
+
 }
 
 // RegisterFunc adds f to the list of Funcs
@@ -44,29 +41,43 @@ func RegisterFunc(f Func) {
 	}
 }
 
-// DefaultFunc provides the default system client.  In app engine environments
-// this will be overwritten by the urlfetch.Client(ctx) function.
-func DefaultFunc(ctx context.Context) (*http.Client, error) {
-	return defaultFunc(ctx)
-}
-
 // Func returns an http.Client pointer.
 type Func func(ctx context.Context) (*http.Client, error)
 
-// Exec safely executes the by executing DefaultFunc if nil
-func (r Func) Exec(ctx context.Context) (*http.Client, error) {
+// Get retrieves the default client for the passed context
+func Get(ctx context.Context) (*http.Client, error) {
+	return defaultFunc(ctx)
+}
+
+// Client retrieves the default client.  If an error
+// occurs, the error will be stored as an ErrorTransport
+// in the client.  The error will be returned on all
+// calls the client makes.
+func Client(ctx context.Context) *http.Client {
+	cl, err := defaultFunc(ctx)
+	if err != nil {
+		return &http.Client{
+			Transport: &ErrorTransport{Err: err},
+		}
+	}
+	return cl
+}
+
+// Get safely executes the by executing DefaultFunc if nil
+func (r Func) Get(ctx context.Context) (*http.Client, error) {
 	if r == nil {
 		return defaultFunc(ctx)
 	}
 	return r(ctx)
 }
 
-// Client handles selection errors by wrapping them in an
-// ErrorTransport so that errors are not found until the
-// actual Client.Do(...)
+// Client retrieves the Func's client.  If an error
+// occurs, the error will be stored as an ErrorTransport
+// in the client.  The error will be returned on all
+// calls the client makes.
 func (r Func) Client(ctx context.Context) *http.Client {
 	if r == nil {
-		r = DefaultFunc
+		return Client(ctx)
 	}
 	cl, err := r(ctx)
 	if err != nil {
