@@ -64,22 +64,22 @@ func Client(ctx context.Context) *http.Client {
 }
 
 // Get safely executes the by executing DefaultFunc if nil
-func (r Func) Get(ctx context.Context) (*http.Client, error) {
-	if r == nil {
+func (f Func) Get(ctx context.Context) (*http.Client, error) {
+	if f == nil {
 		return defaultFunc(ctx)
 	}
-	return r(ctx)
+	return f(ctx)
 }
 
 // Client retrieves the Func's client.  If an error
 // occurs, the error will be stored as an ErrorTransport
 // in the client.  The error will be returned on all
 // calls the client makes.
-func (r Func) Client(ctx context.Context) *http.Client {
-	if r == nil {
+func (f Func) Client(ctx context.Context) *http.Client {
+	if f == nil {
 		return Client(ctx)
 	}
-	cl, err := r(ctx)
+	cl, err := f(ctx)
 	if err != nil {
 		return &http.Client{
 			Transport: &ErrorTransport{Err: err},
@@ -98,7 +98,7 @@ func Error(cl *http.Client) error {
 }
 
 // ErrorTransport returns the specified error on RoundTrip.
-// This RoundTripper should be used in rare error cases where
+// This RoundTripper should be used in cases where
 // error handling can be postponed to response handling time.
 type ErrorTransport struct{ Err error }
 
@@ -106,4 +106,25 @@ type ErrorTransport struct{ Err error }
 // in an url.Error by http.Client
 func (t *ErrorTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	return nil, t.Err
+}
+
+// Transport returns the transport from the default client
+func Transport(ctx context.Context) http.RoundTripper {
+	cl, err := defaultFunc(ctx)
+	if err != nil {
+		return &ErrorTransport{Err: err}
+	}
+	return cl.Transport
+}
+
+// Transport returns the transport of the client
+func (f Func) Transport(ctx context.Context) http.RoundTripper {
+	if f == nil {
+		return Transport(ctx)
+	}
+	cl, err := f(ctx)
+	if err != nil {
+		return &ErrorTransport{Err: err}
+	}
+	return cl.Transport
 }
