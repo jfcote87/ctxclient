@@ -22,7 +22,7 @@ func init() {
 	defaultFuncs = append(defaultFuncs, func(ctx context.Context) (*http.Client, error) {
 		cl := urlfetch.Client(ctx)
 		if cl == nil {
-			return nil, errors.New("urlfetch return nil client")
+			return nil, errors.New("urlfetch returned nil client")
 		}
 		return cl, nil
 	}

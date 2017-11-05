@@ -8,10 +8,13 @@
 // the context.  This borrows from ideas found in
 // golang.org/x/oauth2.
 //
-// The obvious usage exists app engine environment using
-// the urlfetch package.  By allowing client decision to wait
-// until the actual Do() call, boiler plate selection code
-// can be removed.
+// I created this package to simplify client selection
+// when implementing client api packages for vendor's
+// web services.  The obvious usage exists in the app
+// engine environment using the urlfetch package.  By
+// allowing client decision to wait until the actual Do()
+// call, boiler plate selection code may be replaced with
+// func.Client(ctx) or func.Get(ctx).
 package ctxclient
 
 import (
