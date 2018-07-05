@@ -64,3 +64,71 @@ func TestFuncError(t *testing.T) {
 		t.Errorf("error Func.Client expected to return *url.Error on Get call; got %#v", err)
 	}
 }
+
+func TestRegister(t *testing.T) {
+	tempClient := &http.Client{
+		Transport: &ctxclient.ErrorTransport{Err: errors.New("Test Error Transport")},
+	}
+	var tempErr error = errors.New("CTX Error")
+
+	ctxclient.RegisterFunc(func(ctx context.Context) (*http.Client, error) {
+		k, _ := ctx.Value("ctxkey").(string)
+		if k == "A" {
+			return tempClient, nil
+		}
+		return nil, nil
+	})
+	ctxclient.RegisterFunc(func(ctx context.Context) (*http.Client, error) {
+		k, _ := ctx.Value("ctxkey").(string)
+		if k == "B" {
+			return nil, tempErr
+		}
+		return nil, nil
+	})
+	ctx := context.Background()
+	var clFunc ctxclient.Func
+	cl, err := clFunc.Get(ctx)
+	if err != nil {
+		t.Fatalf("expected defaultClient; got %v", err)
+	}
+	if cl != http.DefaultClient {
+		t.Fatalf("expected http.DefaultClient")
+	}
+
+	ctx = context.WithValue(ctx, "ctxkey", "B")
+	if cl, err = clFunc.Get(ctx); err == nil {
+		t.Fatalf("expected error")
+	} else if err != tempErr {
+		t.Fatalf("expected tempErr; got %#v", err)
+	}
+
+	ctx = context.WithValue(ctx, "ctxkey", "A")
+	if cl, err = clFunc.Get(ctx); err != nil {
+		t.Fatalf("expected tempClient; got %v", err)
+	} else if cl != tempClient {
+		t.Fatalf("expected tempClient; got %#v", cl)
+	}
+
+	ctx = context.WithValue(ctx, "ctxkey", "B")
+	if err = ctxclient.Error(clFunc.Client(ctx)); err == nil {
+		t.Fatalf("expected error")
+	}
+	if err != tempErr {
+		t.Fatalf("expected tempErr; got %#v", err)
+	}
+	ctx = context.WithValue(ctx, "ctxkey", "A")
+	if cl = clFunc.Client(ctx); cl != tempClient {
+		t.Fatalf("expected tempClient; got %#v", cl)
+	}
+	tempClient2 := &http.Client{}
+	clFunc = func(ctx context.Context) (*http.Client, error) {
+		return tempClient2, nil
+	}
+	if cl = clFunc.Client(ctx); cl != tempClient2 {
+		t.Fatalf("expected tempClient2; got %#v", cl)
+	}
+	if err = ctxclient.Error(cl); err != nil {
+		t.Fatalf("expected nil error on client; got %v", err)
+	}
+
+}

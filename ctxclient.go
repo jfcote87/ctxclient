@@ -20,7 +20,6 @@ func defaultFunc(ctx context.Context) (*http.Client, error) {
 		}
 	}
 	return http.DefaultClient, nil
-
 }
 
 // RegisterFunc adds f to the list of Funcs
@@ -28,6 +27,8 @@ func defaultFunc(ctx context.Context) (*http.Client, error) {
 // during init as it is not thread safe.
 func RegisterFunc(f Func) {
 	if f != nil {
+		// Place newly registered func at the top of list allowing
+		// appengine default to always be last.
 		defaultFuncs = append([]Func{f}, defaultFuncs...)
 	}
 }
