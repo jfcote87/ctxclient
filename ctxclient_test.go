@@ -6,6 +6,7 @@
 package ctxclient_test
 
 import (
+	"bytes"
 	"errors"
 	"net/http"
 	"net/url"
@@ -19,10 +20,7 @@ import (
 func TestNullFunc(t *testing.T) {
 	var f ctxclient.Func
 	ctx := context.Background()
-	cl, err := f.Get(ctx)
-	if err != nil {
-		t.Errorf("nil Func.Get expected nil err; got %v", err)
-	}
+	cl := f.Client(ctx)
 	if cl != http.DefaultClient {
 		t.Errorf("nil Func.Get expected http.DefaultClient; got %#v", cl)
 	}
@@ -34,27 +32,26 @@ func TestNullFunc(t *testing.T) {
 
 func TestFuncError(t *testing.T) {
 	ctx := context.Background()
-	var testErr = errors.New("TestError")
+	var testErr error
 
 	var testCl = &http.Client{}
 	// check for err condition
 	var f ctxclient.Func = func(ctx context.Context) (*http.Client, error) {
 		return testCl, testErr
 	}
-	cl, err := f.Get(context.Background())
-	if err != testErr {
-		t.Errorf("error Func.Get expected testErr; got %v", err)
-	}
+	cl := f.Client(ctx)
 	if cl != testCl {
 		t.Errorf("error Func.Get expected testCl; go %#v", cl)
 	}
 
+	testErr = errors.New("TestError")
+	testCl = nil
 	if cl = f.Client(ctx); ctxclient.Error(cl) != testErr {
 		t.Errorf("error Func.Client expected testErr Transport; got %#v", ctxclient.Error(cl))
 	}
 
 	// check that the error transport returns testErr wrapped in url.Error
-	_, err = cl.Get("http://test.com")
+	_, err := cl.Get("http://test.com")
 	switch e := err.(type) {
 	case *url.Error:
 		if e.Err != testErr {
@@ -87,30 +84,31 @@ func TestRegister(t *testing.T) {
 	})
 	ctx := context.Background()
 	var clFunc ctxclient.Func
-	cl, err := clFunc.Get(ctx)
-	if err != nil {
-		t.Fatalf("expected defaultClient; got %v", err)
-	}
+	cl := clFunc.Client(ctx)
 	if cl != http.DefaultClient {
 		t.Fatalf("expected http.DefaultClient")
 	}
 
 	ctx = context.WithValue(ctx, "ctxkey", "B")
-	if cl, err = clFunc.Get(ctx); err == nil {
+	cl = clFunc.Client(ctx)
+
+	if err := ctxclient.Error(cl); err == nil {
 		t.Fatalf("expected error")
 	} else if err != tempErr {
 		t.Fatalf("expected tempErr; got %#v", err)
 	}
 
 	ctx = context.WithValue(ctx, "ctxkey", "A")
-	if cl, err = clFunc.Get(ctx); err != nil {
+	cl = clFunc.Client(ctx)
+	if err := ctxclient.Error(cl); err == nil {
 		t.Fatalf("expected tempClient; got %v", err)
 	} else if cl != tempClient {
 		t.Fatalf("expected tempClient; got %#v", cl)
 	}
 
 	ctx = context.WithValue(ctx, "ctxkey", "B")
-	if err = ctxclient.Error(clFunc.Client(ctx)); err == nil {
+	err := ctxclient.Error(clFunc.Client(ctx))
+	if err == nil {
 		t.Fatalf("expected error")
 	}
 	if err != tempErr {
@@ -131,4 +129,23 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("expected nil error on client; got %v", err)
 	}
 
+}
+
+type testCloser struct {
+	*bytes.Reader
+	IsClosed bool
+}
+
+func (t *testCloser) Close() error {
+	t.IsClosed = true
+	return nil
+}
+
+func TestRequestError(t *testing.T) {
+	tRdr := &testCloser{}
+	req, _ := http.NewRequest("POST", "http://www.example.com", tRdr)
+	ctxclient.RequestError(req, errors.New("Error"))
+	if !tRdr.IsClosed {
+		t.Error("expected reader to be closed by RequestError")
+	}
 }
