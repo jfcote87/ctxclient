@@ -5,13 +5,11 @@
 
 Package ctxclient offers utilities for handling the
 selection and creation of http.Clients based on
-the context.  This borrows from ideas found in
-golang.org/x/oauth2.
+the context.  To remove boiler plate code checking
+for 2xx statuses and handling of timeouts, the Func.Do
+method provides these functions for http requests.
 
-I created this package to simplify client selection
-when implementing client api packages for vendor's
-web services.  The obvious usage exists in the app
-engine environment using the urlfetch package.  By
-allowing client decision to wait until the actual Do()
-call, boiler plate selection code may be replaced with
-func.Client(ctx) or func.Get(ctx).
+See examples.
+
+This package borrows from ideas found in
+golang.org/x/oauth2.

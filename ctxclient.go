@@ -1,5 +1,4 @@
-// Copyright 2017 James Cote and Liberty Fund, Inc.
-// All rights reserved.
+// Copyright 2019 James Cote All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -16,17 +15,18 @@
 //   ...
 //   var clf *ctxclient.Func
 //   req, _ := http.NewRequest("GET","http://example.com",nil)
-//   res, err := clf.Client().Client("http://example.com")
+//   res, err := clf.Do(req)
 //   ...
 //
 package ctxclient // import "github.com/jfcote87/ctxclient"
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
-
-	"golang.org/x/net/context"
+	"net/url"
+	"strings"
 )
 
 var defaultFuncs []Func
@@ -136,8 +136,39 @@ func (f Func) Do(ctx context.Context, req *http.Request) (*http.Response, error)
 		return do(ctx, Client(ctx), req)
 	}
 	return do(ctx, f.Client(ctx), req)
+}
+
+// PostForm issues a POST request through the default http.Client
+func PostForm(ctx context.Context, url string, payload url.Values) (*http.Response, error) {
+	req, err := newPostFormRequest(url, payload)
+	if err != nil {
+		return nil, err
+	}
+	return do(ctx, Client(ctx), req)
+}
+
+// PostForm issues a POST request through the http.Client determined by f
+func (f Func) PostForm(ctx context.Context, url string, payload url.Values) (*http.Response, error) {
+	if f == nil {
+		return PostForm(ctx, url, payload)
+	}
+	req, err := newPostFormRequest(url, payload)
+	if err != nil {
+		return nil, err
+	}
+	return do(ctx, f.Client(ctx), req)
 
 }
+func newPostFormRequest(url string, data url.Values) (*http.Request, error) {
+	req, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	return req, nil
+}
+
+//func post(ctx context.Context, url string, payload)
 
 // NotSuccess contains body of a non 2xx http response
 type NotSuccess struct {

@@ -1,9 +1,8 @@
-// Copyright 2017 James Cote and Liberty Fund, Inc.
-// All rights reserved.
+// Copyright 2019 James Cote All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build appengine appenginevm
+// +build appengine appenginevm 
 
 // App Engine hooks is based upon appengine code in golang.org/x/oauth2
 
