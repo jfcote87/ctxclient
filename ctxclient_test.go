@@ -1,5 +1,4 @@
-// Copyright 2017 James Cote and Liberty Fund, Inc.
-// All rights reserved.
+// Copyright 2017 James Cote All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -7,13 +6,13 @@ package ctxclient_test
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"net/http"
 	"net/url"
 	"testing"
 
 	"github.com/jfcote87/ctxclient"
-	"golang.org/x/net/context"
 )
 
 // TestNullFunc ensures that a null Func will return defaults

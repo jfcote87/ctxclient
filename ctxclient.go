@@ -1,5 +1,4 @@
-// Copyright 2017 James Cote and Liberty Fund, Inc.
-// All rights reserved.
+// Copyright 2019 James Cote All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -16,19 +15,18 @@
 //   ...
 //   var clf *ctxclient.Func
 //   req, _ := http.NewRequest("GET","http://example.com",nil)
-//   res, err := clf.Client().Client("http://example.com")
+//   res, err := clf.Do(req)
 //   ...
 //
 package ctxclient // import "github.com/jfcote87/ctxclient"
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 var defaultFuncs []Func
@@ -159,8 +157,8 @@ func (f Func) PostForm(ctx context.Context, url string, payload url.Values) (*ht
 		return nil, err
 	}
 	return do(ctx, f.Client(ctx), req)
-
 }
+
 func newPostFormRequest(url string, data url.Values) (*http.Request, error) {
 	req, err := http.NewRequest("POST", url, strings.NewReader(data.Encode()))
 	if err != nil {
@@ -169,8 +167,6 @@ func newPostFormRequest(url string, data url.Values) (*http.Request, error) {
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	return req, nil
 }
-
-//func post(ctx context.Context, url string, payload)
 
 // NotSuccess contains body of a non 2xx http response
 type NotSuccess struct {
