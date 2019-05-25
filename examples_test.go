@@ -12,7 +12,7 @@ import (
 	"github.com/jfcote87/ctxclient"
 )
 
-func Example_defaultClient() {
+func Example_func_nil() {
 	ctx := context.Background()
 	var clfunc ctxclient.Func
 
@@ -29,7 +29,7 @@ func Example_defaultClient() {
 	}
 }
 
-func Example_add_header_from_context() {
+func Example_func() {
 	var clfunc ctxclient.Func = func(ctx context.Context) (*http.Client, error) {
 		k, _ := ctx.Value(UserKey).(string)
 		if k == "" {
