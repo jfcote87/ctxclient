@@ -2,17 +2,17 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build appengine appenginevm 
+// +build appengine appenginevm
 
 // App Engine hooks is based upon appengine code in golang.org/x/oauth2
 
 package ctxclient // import "github.com/jfcote87/ctxclient"
 
 import (
+	"context"
 	"errors"
 	"net/http"
 
-	"golang.org/x/net/context"
 	"google.golang.org/appengine/urlfetch"
 )
 
@@ -24,5 +24,5 @@ func init() {
 			return nil, errors.New("urlfetch returned nil client")
 		}
 		return cl, nil
-	}
+	})
 }

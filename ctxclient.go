@@ -124,13 +124,13 @@ func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response
 }
 
 // Do sends the request using the default client and checks for timeout/cancellation.
-// Returns ResponseErr if response status is not 2xx. ctx must be non-nil
+// Returns NotSuccess error if response status is not 2xx.
 func Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	return do(ctx, Client(ctx), req)
 }
 
 // Do sends the request using the calculated client and checks for timeout/cancellation.
-// Returns ResponseErr if response status is not 2xx. ctx must be non-nil
+// Returns NotSuccess error if response status is not 2xx.
 func (f Func) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	if f == nil {
 		return do(ctx, Client(ctx), req)
@@ -168,7 +168,8 @@ func newPostFormRequest(url string, data url.Values) (*http.Request, error) {
 	return req, nil
 }
 
-// NotSuccess contains body of a non 2xx http response
+// NotSuccess contains body and headers of a non 2xx http response.  Returned
+// by Do() when non-2xx response returned.
 type NotSuccess struct {
 	StatusCode    int
 	StatusMessage string
