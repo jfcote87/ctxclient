@@ -22,6 +22,7 @@ package ctxclient // import "github.com/jfcote87/ctxclient"
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -31,9 +32,27 @@ import (
 
 var defaultFuncs []Func
 
+type useDefault struct{}
+
+func (se *useDefault) Error() string {
+	return "use default client"
+}
+
+var nilClient = &http.Client{
+	Transport: &ErrorTransport{Err: errNilClient},
+}
+
+// ErrUseDefault should be returned as the error
+// from a ctxclient.Func when wishing to use the
+// default client determined by the ctxclient package.
+var ErrUseDefault *useDefault
+
+var errNilClient = errors.New("nil client")
+
 func defaultFunc(ctx context.Context) (*http.Client, error) {
 	for _, f := range defaultFuncs {
-		if cl, err := f(ctx); err != nil || cl != nil {
+		cl, err := f(ctx)
+		if _, ok := err.(*useDefault); !ok {
 			return cl, err
 		}
 	}
@@ -65,6 +84,9 @@ func Client(ctx context.Context) *http.Client {
 			Transport: &ErrorTransport{Err: err},
 		}
 	}
+	if cl == nil {
+		return nilClient
+	}
 	return cl
 }
 
@@ -77,10 +99,16 @@ func (f Func) Client(ctx context.Context) *http.Client {
 		return Client(ctx)
 	}
 	cl, err := f(ctx)
-	if err != nil {
+	switch err.(type) {
+	case *useDefault:
+		return Client(ctx)
+	case error:
 		return &http.Client{
 			Transport: &ErrorTransport{Err: err},
 		}
+	}
+	if cl == nil {
+		return nilClient
 	}
 	return cl
 }
@@ -107,30 +135,31 @@ func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response
 		return nil, err
 	}
 
-	if res.StatusCode < 200 || res.StatusCode > 299 {
-		buff, err := ioutil.ReadAll(res.Body)
-		if err != nil {
-			buff = []byte(fmt.Sprintf("%v", err))
-		}
-		res.Body.Close()
-		return nil, &NotSuccess{
-			StatusCode:    res.StatusCode,
-			StatusMessage: res.Status,
-			Header:        res.Header,
-			Body:          buff,
-		}
+	if res.StatusCode >= 200 && res.StatusCode <= 299 {
+		return res, err
 	}
-	return res, err
+	buff, err := ioutil.ReadAll(res.Body)
+	if err != nil {
+		buff = []byte(fmt.Sprintf("%v", err))
+	}
+	res.Body.Close()
+	return nil, &NotSuccess{
+		StatusCode:    res.StatusCode,
+		StatusMessage: res.Status,
+		Header:        res.Header,
+		Body:          buff,
+	}
+
 }
 
 // Do sends the request using the default client and checks for timeout/cancellation.
-// Returns NotSuccess error if response status is not 2xx.
+// Returns *NotSuccess error if response status is not 2xx. ctx must be non-nil
 func Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	return do(ctx, Client(ctx), req)
 }
 
 // Do sends the request using the calculated client and checks for timeout/cancellation.
-// Returns NotSuccess error if response status is not 2xx.
+// Returns *NotSuccess if response status is not 2xx. ctx must be non-nil
 func (f Func) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 	if f == nil {
 		return do(ctx, Client(ctx), req)
@@ -168,8 +197,7 @@ func newPostFormRequest(url string, data url.Values) (*http.Request, error) {
 	return req, nil
 }
 
-// NotSuccess contains body and headers of a non 2xx http response.  Returned
-// by Do() when non-2xx response returned.
+// NotSuccess contains body of a non 2xx http response
 type NotSuccess struct {
 	StatusCode    int
 	StatusMessage string
@@ -213,12 +241,4 @@ func Transport(ctx context.Context) http.RoundTripper {
 		return http.DefaultTransport
 	}
 	return cl.Transport
-}
-
-// RoundTrip executes the clients RoundTripper
-func RoundTrip(cl *http.Client, req *http.Request) (*http.Response, error) {
-	if cl == nil || cl.Transport == nil {
-		return http.DefaultTransport.RoundTrip(req)
-	}
-	return cl.Transport.RoundTrip(req)
 }

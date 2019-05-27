@@ -1,4 +1,4 @@
-// Copyright 2017 James Cote All rights reserved.
+// Copyright 2019 James Cote All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 package ctxclient_test
@@ -33,7 +33,10 @@ func Example_func() {
 	var clfunc ctxclient.Func = func(ctx context.Context) (*http.Client, error) {
 		k, _ := ctx.Value(UserKey).(string)
 		if k == "" {
+
 			return nil, errors.New("no user key provided in context")
+			// or to use the default client instead:
+			// return nil, ctxclient.ErrUseDefault
 		}
 		return &http.Client{Transport: &UserKeyTransport{UserKey: k}}, nil
 	}
@@ -49,6 +52,18 @@ func Example_func() {
 	default:
 		log.Printf("Transport error: %v", err)
 	}
+}
+
+func Example_register() {
+	// should be done during a package init()
+	var clfunc ctxclient.Func = func(ctx context.Context) (*http.Client, error) {
+		k, _ := ctx.Value(UserKey).(string)
+		if k == "" {
+			return nil, ctxclient.ErrUseDefault // use default instead
+		}
+		return &http.Client{Transport: &UserKeyTransport{UserKey: k}}, nil
+	}
+	ctxclient.RegisterFunc(clfunc)
 }
 
 var UserKey userKey

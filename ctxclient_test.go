@@ -1,4 +1,4 @@
-// Copyright 2017 James Cote All rights reserved.
+// Copyright 2019 James Cote All rights reserved.
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/jfcote87/ctxclient"
+	"github.com/jfcote87/testutils"
 )
 
 // TestNullFunc ensures that a null Func will return defaults
@@ -23,9 +24,49 @@ func TestNullFunc(t *testing.T) {
 	if cl != http.DefaultClient {
 		t.Errorf("nil Func.Get expected http.DefaultClient; got %#v", cl)
 	}
+	f = func(c context.Context) (*http.Client, error) {
+		return nil, nil
+	}
 	cl = f.Client(ctx)
-	if cl != http.DefaultClient {
-		t.Errorf("nil Func.Client expected http.DefaultClient; got %#v", cl)
+	err := ctxclient.Error(cl)
+	if err == nil || err.Error() != "nil client" {
+		t.Errorf("Func.Client nil client returned expected nil client err; got %v", err)
+	}
+}
+
+func Test_do(t *testing.T) {
+	testTransport := &testutils.Transport{}
+	clx := &http.Client{Transport: testTransport}
+	var f ctxclient.Func = func(ctx context.Context) (*http.Client, error) {
+		return clx, nil
+	}
+	hdr := make(http.Header)
+	hdr.Set("X-Test1", "Test Value")
+	testTransport.Add(
+		&testutils.RequestTester{ // test 0
+			Response: testutils.MakeResponse(200, nil, nil),
+		},
+		&testutils.RequestTester{ // test 0
+			Response: testutils.MakeResponse(400, []byte("Bad Request"), hdr),
+		},
+	)
+	ctx := context.Background()
+	r, _ := http.NewRequest("GET", "http://example.com", nil)
+	res, err := f.Do(ctx, r)
+	if err != nil {
+		t.Errorf("wanted success; got %#v", err)
+	}
+	if res != nil && res.Body != nil {
+		res.Body.Close()
+	}
+	r, _ = http.NewRequest("GET", "http://example.com", nil)
+	res, err = f.Do(ctx, r)
+	nsErr, ok := err.(*ctxclient.NotSuccess)
+	if !ok || nsErr.StatusCode != 400 || string(nsErr.Body) != "Bad Request" || nsErr.Header.Get("X-Test1") != "Test Value" {
+		t.Errorf("wanted *ctxclient.NotSuccess with StatusCode: 400, Body: \"BadRequest\", X-Test1 header == \"Test Value\"; got %#v", err)
+	}
+	if res != nil && res.Body != nil {
+		res.Body.Close()
 	}
 }
 
@@ -72,14 +113,14 @@ func TestRegister(t *testing.T) {
 		if k == "A" {
 			return tempClient, nil
 		}
-		return nil, nil
+		return nil, ctxclient.ErrUseDefault
 	})
 	ctxclient.RegisterFunc(func(ctx context.Context) (*http.Client, error) {
 		k, _ := ctx.Value("ctxkey").(string)
 		if k == "B" {
 			return nil, tempErr
 		}
-		return nil, nil
+		return nil, ctxclient.ErrUseDefault
 	})
 	ctx := context.Background()
 	var clFunc ctxclient.Func

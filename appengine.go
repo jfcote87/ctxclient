@@ -18,6 +18,7 @@ import (
 
 func init() {
 	// set defaultContextClientFunc to return urlFetch client
+
 	defaultFuncs = append(defaultFuncs, func(ctx context.Context) (*http.Client, error) {
 		cl := urlfetch.Client(ctx)
 		if cl == nil {
