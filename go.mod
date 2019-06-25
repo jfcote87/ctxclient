@@ -1,6 +1,6 @@
 module github.com/jfcote87/ctxclient
 
-go 1.12
+go 1.11
 
 require (
 	github.com/golang/protobuf v1.3.1 // indirect
