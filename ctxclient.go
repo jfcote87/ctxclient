@@ -161,10 +161,17 @@ func Do(ctx context.Context, req *http.Request) (*http.Response, error) {
 // Do sends the request using the calculated client and checks for timeout/cancellation.
 // Returns *NotSuccess if response status is not 2xx. ctx must be non-nil
 func (f Func) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
-	if f == nil {
-		return do(ctx, Client(ctx), req)
-	}
 	return do(ctx, f.Client(ctx), req)
+}
+
+// Get creates a GET request from the passed url and return Response if 200-2XX response
+func (f Func) Get(ctx context.Context, url string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return f.Do(ctx, req)
+
 }
 
 // PostForm issues a POST request through the default http.Client

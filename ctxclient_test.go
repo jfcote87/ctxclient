@@ -102,21 +102,24 @@ func TestFuncError(t *testing.T) {
 	}
 }
 
+type testCtxKey struct{}
+
 func TestRegister(t *testing.T) {
 	tempClient := &http.Client{
 		Transport: &ctxclient.ErrorTransport{Err: errors.New("Test Error Transport")},
 	}
 	var tempErr error = errors.New("CTX Error")
 
+	var ctxkey testCtxKey
 	ctxclient.RegisterFunc(func(ctx context.Context) (*http.Client, error) {
-		k, _ := ctx.Value("ctxkey").(string)
+		k, _ := ctx.Value(ctxkey).(string)
 		if k == "A" {
 			return tempClient, nil
 		}
 		return nil, ctxclient.ErrUseDefault
 	})
 	ctxclient.RegisterFunc(func(ctx context.Context) (*http.Client, error) {
-		k, _ := ctx.Value("ctxkey").(string)
+		k, _ := ctx.Value(ctxkey).(string)
 		if k == "B" {
 			return nil, tempErr
 		}
@@ -126,10 +129,10 @@ func TestRegister(t *testing.T) {
 	var clFunc ctxclient.Func
 	cl := clFunc.Client(ctx)
 	if cl != http.DefaultClient {
-		t.Fatalf("expected http.DefaultClient")
+		t.Fatal("expected http.DefaultClient")
 	}
 
-	ctx = context.WithValue(ctx, "ctxkey", "B")
+	ctx = context.WithValue(ctx, ctxkey, "B")
 	cl = clFunc.Client(ctx)
 
 	if err := ctxclient.Error(cl); err == nil {
@@ -138,7 +141,7 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("expected tempErr; got %#v", err)
 	}
 
-	ctx = context.WithValue(ctx, "ctxkey", "A")
+	ctx = context.WithValue(ctx, ctxkey, "A")
 	cl = clFunc.Client(ctx)
 	if err := ctxclient.Error(cl); err == nil {
 		t.Fatalf("expected tempClient; got %v", err)
@@ -146,7 +149,7 @@ func TestRegister(t *testing.T) {
 		t.Fatalf("expected tempClient; got %#v", cl)
 	}
 
-	ctx = context.WithValue(ctx, "ctxkey", "B")
+	ctx = context.WithValue(ctx, ctxkey, "B")
 	err := ctxclient.Error(clFunc.Client(ctx))
 	if err == nil {
 		t.Fatalf("expected error")
@@ -154,7 +157,7 @@ func TestRegister(t *testing.T) {
 	if err != tempErr {
 		t.Fatalf("expected tempErr; got %#v", err)
 	}
-	ctx = context.WithValue(ctx, "ctxkey", "A")
+	ctx = context.WithValue(ctx, ctxkey, "A")
 	if cl = clFunc.Client(ctx); cl != tempClient {
 		t.Fatalf("expected tempClient; got %#v", cl)
 	}
