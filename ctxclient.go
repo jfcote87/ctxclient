@@ -64,13 +64,13 @@ func defaultFunc(ctx context.Context) (*http.Client, error) {
 // during init as it is not thread safe.
 func RegisterFunc(f Func) {
 	if f != nil {
-		// Place newly registered func at the top of list allowing
-		// appengine default to always be last.
+		// Place newly registered func at the top of list .
 		defaultFuncs = append([]Func{f}, defaultFuncs...)
 	}
 }
 
-// Func returns an http.Client pointer.
+// Func returns an *http.Client based upon the context.  If
+// Func is nil the default client is returned.
 type Func func(ctx context.Context) (*http.Client, error)
 
 // Client retrieves the default client.  If an error
