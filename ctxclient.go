@@ -9,22 +9,21 @@
 //
 // Usage example:
 //
-//   import (
-//       "github.com/jfcote87/ctxclient"
-//   )
-//   ...
-//   var clf *ctxclient.Func
-//   req, _ := http.NewRequest("GET","http://example.com",nil)
-//   res, err := clf.Do(req)
-//   ...
-//
+//	import (
+//	    "github.com/jfcote87/ctxclient"
+//	)
+//	...
+//	var clf *ctxclient.Func
+//	req, _ := http.NewRequest("GET","http://example.com",nil)
+//	res, err := clf.Do(req)
+//	...
 package ctxclient // import "github.com/jfcote87/ctxclient"
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -64,13 +63,13 @@ func defaultFunc(ctx context.Context) (*http.Client, error) {
 // during init as it is not thread safe.
 func RegisterFunc(f Func) {
 	if f != nil {
-		// Place newly registered func at the top of list .
+		// Place newly registered func at the top of list allowing
+		// appengine default to always be last.
 		defaultFuncs = append([]Func{f}, defaultFuncs...)
 	}
 }
 
-// Func returns an *http.Client based upon the context.  If
-// Func is nil the default client is returned.
+// Func returns an http.Client pointer.
 type Func func(ctx context.Context) (*http.Client, error)
 
 // Client retrieves the default client.  If an error
@@ -138,12 +137,13 @@ func do(ctx context.Context, cl *http.Client, req *http.Request) (*http.Response
 	if res.StatusCode >= 200 && res.StatusCode <= 299 {
 		return res, err
 	}
-	buff, err := ioutil.ReadAll(res.Body)
+	buff, err := io.ReadAll(res.Body)
 	if err != nil {
 		buff = []byte(fmt.Sprintf("%v", err))
 	}
 	res.Body.Close()
 	return nil, &NotSuccess{
+		Response:      res,
 		StatusCode:    res.StatusCode,
 		StatusMessage: res.Status,
 		Header:        res.Header,
@@ -206,6 +206,7 @@ func newPostFormRequest(url string, data url.Values) (*http.Request, error) {
 
 // NotSuccess contains body of a non 2xx http response
 type NotSuccess struct {
+	Response      *http.Response
 	StatusCode    int
 	StatusMessage string
 	Body          []byte
